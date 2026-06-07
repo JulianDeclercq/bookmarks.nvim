@@ -19,6 +19,27 @@ local function get_text(annotation)
    return ret .. annotation
 end
 
+local function get_frontmatter_alias(filepath)
+   local f = io.open(filepath, "r")
+   if not f then return nil end
+   local lines = {}
+   for _ = 1, 20 do
+      local l = f:read("*l")
+      if not l then break end
+      lines[#lines + 1] = l
+   end
+   f:close()
+   for i, line in ipairs(lines) do
+      if vim.startswith(line, "aliases") then
+         local nxt = lines[i + 1]
+         if nxt then
+            return nxt:match("%-%s*(.-)%s*$")
+         end
+      end
+   end
+   return nil
+end
+
 local function bookmark(opts)
    opts = opts or {}
    local allmarks = config.cache.data
@@ -36,16 +57,15 @@ local function bookmark(opts)
       local displayer = entry_display.create {
          separator = "▏",
          items = {
-            { width = 5 },
-            { width = 30 },
             { remaining = true },
+            { width = 5 },
          },
       }
-      local line_info = { entry.lnum, "TelescopeResultsLineNr" }
+      local alias = get_frontmatter_alias(entry.filename)
+      local name = alias or utils.path_tail(entry.filename)
       return displayer {
-         line_info,
-         entry.text:gsub(".* | ", ""),
-         utils.path_smart(entry.filename), -- or path_tail
+         name,
+         { tostring(entry.lnum), "TelescopeResultsLineNr" },
       }
    end
    pickers.new(opts, {
